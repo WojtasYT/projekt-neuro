@@ -184,9 +184,9 @@ IDs should be stable. Timestamps should be consistent. Use migrations. Preserve 
 
 ## 8. Przechowywanie, prywatność i offline
 
-Docelowo local-first:
-- IndexedDB for notes, relationships, projects, reading items, preferences, and attachment metadata/blobs.
-- Service worker caches app shell and static assets.
+Docelowo local-first **na Androidzie (Room/SQLite)**. Prototyp PWA używał IndexedDB i service workera — to zapis historyczny, nie bieżący cel.
+
+- Room is the durable source of truth on device.
 - Core read/write flows work offline.
 - AI, source search, and current research clearly indicate that they require a connection.
 - Export/import JSON with version field and schema validation.
