@@ -1,52 +1,31 @@
 # Neurotrino Lab
 
-Prywatne laboratorium myśli: zapis, rozwinięcie, połączenia, projekty i powrót do wątku — bez presji produktywności i bez oddawania autorstwa.
+Prywatne laboratorium myśli. **Produkt główny to natywna aplikacja Android** (`android/`).  
+PWA w katalogu głównym to zachowany prototyp.
 
-To nie jest planer, tracker nawyków ani chatbot.
+## Android (docelowo)
 
-## Co działa lokalnie
+Wymagania: Android Studio, JDK 17, Android SDK 36.
 
-- ekran Laboratorium (szybki zapis, wznowienie, iskra)
-- Thought Studio z autosave, stanem, tagami, kartą hipotezy
-- surowy oryginalny zapis oddzielony od później dopisywanych warstw
-- projekty i przypisywanie myśli
-- powiązania między myślami (lista + konstelacja)
-- biblioteka z Twoją półką startową
-- wyszukiwanie (także bez polskich znaków)
-- eksport / import JSON
-- PWA / podstawowy tryb offline
-- jasny i ciemny motyw
+```bash
+cd android
+# Pierwsze otwarcie: File → Open → android/
+# Studio dociągnie Gradle wrapper, jeśli brakuje gradle-wrapper.jar
+./gradlew :app:assembleDebug :app:testDebugUnitTest
+```
 
-Asystent AI **nie udaje** odpowiedzi, dopóki nie podasz własnej bramki serwerowej.
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-## Uruchomienie
+Szczegóły po polsku: `README_PL.md`, migracja z PWA: `docs/MIGRACJA_PWA.md`.
+
+## Prototyp PWA (nie rozwijać jako produktu)
 
 ```bash
 npm install
 npm run dev
-```
-
-Aplikacja nasłuchuje na `0.0.0.0:5173`. Dane zostają w IndexedDB przeglądarki.
-
-## Testy i jakość
-
-```bash
 npm test
-npm run typecheck
-npm run lint
-npm run build
 ```
-
-## Konfiguracja AI (opcjonalna)
-
-1. Postaw własną funkcję serwerową, która trzyma klucz dostawcy.
-2. W **Więcej → Asystent AI** wklej URL tej bramki.
-3. Przy każdej prośbie aplikacja pokaże, co zostanie wysłane, i wymaga zgody.
-
-Nigdy nie wklejaj klucza API do frontendu.
 
 ## Prywatność
 
-- brak konta, analytics i chmury
-- treści przykładowe są oznaczone i usuwalne
-- „Wyczyść laboratorium” kasuje dane na tym urządzeniu
+Brak konta, telemetrii i chmury. Asystent wymaga własnej bramki serwerowej; bez niej nie udaje odpowiedzi.

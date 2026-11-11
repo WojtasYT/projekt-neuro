@@ -1,44 +1,26 @@
 # Architektura — Neurotrino Lab
 
-## Decyzje
+## Źródło prawdy
 
-- **PWA (Vite + React + TypeScript).** Aplikacja ma działać na Androidzie i desktopie, lokalnie, bez konta.
-- **IndexedDB (Dexie), schemat v1.** Źródłem prawdy są dane na urządzeniu. Migracje będą kolejnymi wersjami Dexie.
-- **Brak backendu w tym repozytorium.** Rdzeń (zapis, studio, projekty, graf, biblioteka, eksport) nie wymaga serwera.
-- **AI tylko przez bramkę.** Frontend wysyła JSON na URL podany przez użytkownika. Sekretów nie ma w kodzie, `localStorage` ani IndexedDB.
-- **Iskry katalogowe ≠ AI.** Eksploracja korzysta z lokalnego, recenzowanego katalogu i z własnych wątków użytkownika. To jest jawnie oznaczone.
-- **Surowy zapis jest niemutowalny.** Edycja idzie w `content` i w `expansions`. `rawText` zostaje.
-- **Brak telemetrii.**
+**Produkt główny:** natywna aplikacja Android w `android/` (Kotlin, Jetpack Compose, Room).
 
-## Model
+**Prototyp:** PWA w katalogu głównym (Vite + React + Dexie). Zachowana jako wzorzec logiki i formatu JSON. Nie rozwijać jej jako aplikacji docelowej.
 
-Opisany w `src/domain/types.ts`. Eksport JSON: `{ format: "neurotrino-lab", version: 1, ... }`. Walidacja: Zod (`src/domain/exportSchema.ts`).
+## Android
 
-## AI — kontrakt bramki
+- Pakiet: `lab.neurotrino.app`
+- UI: Jetpack Compose + Material 3, własny system wizualny laboratorium
+- Nawigacja: Navigation Compose, dolny pasek + FAB „Zapisz myśl”
+- Dane: Room `neurotrino-lab.db` v1
+- Eksport: `{ "format": "neurotrino-lab", "version": 1, ... }` — ten sam kształt co PWA
+- AI: `POST` na URL bramki z profilu; oczekiwane `{ "text": "..." }`
+- Kopia zapasowa chmury Androida: wyłączona (`allowBackup=false`)
 
-`POST` na URL z profilu, `Content-Type: application/json`.
+## Wersje narzędzi (dokumentacja Android, 2026)
 
-Ciało zawiera m.in. `mode`, `thought`, `constraints`, `profile` (tylko to, co użytkownik trzyma w profilu).
+- AGP 8.13.0, Gradle 8.13, Kotlin 2.2.21, KSP 2.2.21-2.0.4
+- Compose BOM 2026.09.00, compileSdk/targetSdk 36, minSdk 26, JDK 17
 
-Oczekiwana odpowiedź:
+## PWA (legacy)
 
-```json
-{ "text": "Jedno pytanie albo impuls." }
-```
-
-Akceptowane są też `content` oraz kształt OpenAI `choices[0].message.content`.
-
-## Offline
-
-Service worker (vite-plugin-pwa) cache’uje powłokę. Zapis i odczyt IndexedDB działają bez sieci. AI i przyszłe wyszukiwanie źródeł — nie.
-
-## Uruchomienie
-
-```bash
-npm install
-npm run dev
-npm test
-npm run typecheck
-npm run lint
-npm run build
-```
+IndexedDB, service worker, Dexie. Uruchomienie: `npm run dev`. Testy: `npm test`.

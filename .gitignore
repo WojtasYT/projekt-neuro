@@ -13,3 +13,11 @@ coverage
 .arena
 .cache
 .local
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/.idea
+*.apk
+*.aab
+*.iml

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="capture"
+        android:shortcutShortLabel="@string/shortcut_capture_short"
+        android:shortcutLongLabel="@string/shortcut_capture_long"
+        android:icon="@drawable/ic_shortcut_capture">
+        <intent
+            android:action="lab.neurotrino.app.CAPTURE"
+            android:targetClass="lab.neurotrino.app.MainActivity"
+            android:targetPackage="lab.neurotrino.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="resume"
+        android:shortcutShortLabel="@string/shortcut_resume_short"
+        android:shortcutLongLabel="@string/shortcut_resume_long"
+        android:icon="@drawable/ic_shortcut_resume">
+        <intent
+            android:action="lab.neurotrino.app.RESUME"
+            android:targetClass="lab.neurotrino.app.MainActivity"
+            android:targetPackage="lab.neurotrino.app" />
+    </shortcut>
+</shortcuts>
