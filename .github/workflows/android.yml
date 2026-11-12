@@ -40,7 +40,7 @@ jobs:
               echo "=== compiler errors ==="
               grep -E "^e: " build.log | head -60
               echo "=== likely failure lines ==="
-              grep -E "(FAILED|Execution failed|What went wrong|Lint found|lint.*error|tests? (completed|failed)|> [A-Za-z ]*[Ll]int)" build.log | head -80
+              grep -E "(FAILED|Execution failed|What went wrong|Lint found|Error:|error:|Warning:)" build.log | head -100
               echo "=== tail ==="
               tail -n 60 build.log
             } > ci-errors.txt
