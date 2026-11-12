@@ -35,7 +35,7 @@ jobs:
           set -o pipefail
           ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --console=plain --stacktrace 2>&1 | tee build.log || {
             echo "## Android build failed" >> "$GITHUB_STEP_SUMMARY"
-            grep -E "^(e:|> Task.*FAILED|FAILURE:|.*What went wrong|.*error:)" build.log | head -60 | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | while IFS= read -r line; do
+            { grep -B2 -E "What went wrong" build.log; tail -n 30 build.log; } | head -80 | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | while IFS= read -r line; do
               [ -n "$line" ] && echo "::error::${line:0:900}"
             done
             echo "----- tail of build.log -----" >> "$GITHUB_STEP_SUMMARY"
