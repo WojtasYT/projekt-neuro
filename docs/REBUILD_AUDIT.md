@@ -94,4 +94,12 @@ Zrealizowane w tym etapie: wszystkie ekrany (patrz REBUILD_DECISIONS 17–22), n
 - czytnik źródeł w sieci — celowo brak (bez kluczy/serwera);
 - eksport attachmentów do pliku JSON — celowo brak (pliki zostają w pamięci aplikacji; odnotowane w UI).
 
+### CI — pierwszy zielony przebieg (2026-11-12)
+
+- Run `43295209979` → **success** (357 s): `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug`.
+- Artefakt `app-debug` = **21 379 113 B** (~20,4 MB), ważny do 2027-02-10.
+- Naprawione po drodze: gradlew był 494-bajtowym stubem `java -jar`, ale dołączony jar z `gradle/gradle` nie miał `Main-Class` (wrapper nie startował); wrapper-validation w `setup-gradle` odrzucił nieoficjalnie zbudowany jar → usunięto setup-gradle, cache przez `actions/cache`; compose-bom 2026.09.00/2026.08.00 wymagają Compose 1.12 + compileSdk 37 → BOM **2026.06.01**; `android:windowLayoutInDisplayCutoutMode` = NewApi (API 27 > min 26) → usunięty; `androidx.compose.foundation.clip` nie istnieje → `androidx.compose.ui.draw.clip`; brak importu `Row` w CaptureAndOnboarding; brak mappera `AttachmentMeta.toRow()`.
+- Lokalnie nadal bez SDK/Gradle — kompilacja/lint/testy wyłącznie przez CI powyżej. Uruchomienie aplikacji na urządzeniu nieprzeprowadzone.
+- Lint: 0 błędów, 55 ostrzeżeń (nieblokujące).
+
 Defekty z sekcji 4 zaktualizowane: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,25 — naprawione lub ograniczone opisowo; 23 (ergonomia szczegółów), 24 (audyt copy — wykonany częściowo), 26 — zrealizowany przez tokeny LabColors.
