@@ -86,6 +86,9 @@ interface RelationshipDao {
     @Query("DELETE FROM relationships WHERE fromId = :id OR toId = :id")
     suspend fun deleteTouching(id: String)
 
+    @Query("DELETE FROM relationships WHERE fromId = :fromId AND toId = :toId AND relationType = :type")
+    suspend fun deleteRelation(fromId: String, toId: String, type: String)
+
     @Query("DELETE FROM relationships")
     suspend fun clear()
 }
@@ -119,11 +122,23 @@ interface ReadingDao {
 
 @Dao
 interface SourceDao {
+    @Query("SELECT * FROM sources ORDER BY createdAt DESC")
+    fun observe(): Flow<List<SourceRow>>
+
     @Query("SELECT * FROM sources")
     suspend fun all(): List<SourceRow>
 
+    @Query("SELECT * FROM sources WHERE id = :id")
+    suspend fun get(id: String): SourceRow?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(row: SourceRow)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(rows: List<SourceRow>)
+
+    @Query("DELETE FROM sources WHERE id = :id")
+    suspend fun delete(id: String)
 
     @Query("DELETE FROM sources")
     suspend fun clear()
@@ -137,6 +152,12 @@ interface AttachmentDao {
     @Query("SELECT * FROM attachments WHERE thoughtId = :thoughtId")
     suspend fun forThought(thoughtId: String): List<AttachmentRow>
 
+    @Query("SELECT * FROM attachments WHERE id = :id")
+    suspend fun get(id: String): AttachmentRow?
+
+    @Query("SELECT * FROM attachments")
+    suspend fun all(): List<AttachmentRow>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(row: AttachmentRow)
 
@@ -145,6 +166,9 @@ interface AttachmentDao {
 
     @Query("DELETE FROM attachments WHERE thoughtId = :thoughtId")
     suspend fun deleteForThought(thoughtId: String)
+
+    @Query("DELETE FROM attachments")
+    suspend fun clear()
 }
 
 @Dao
@@ -163,6 +187,15 @@ interface ProfileDao {
 interface MetaDao {
     @Query("SELECT * FROM meta WHERE `key` = :key")
     suspend fun get(key: String): MetaRow?
+
+    @Query("SELECT `key` FROM meta WHERE `key` LIKE 'backup:pre-import:%' ORDER BY `key`")
+    suspend fun backupKeys(): List<String>
+
+    @Query("DELETE FROM meta WHERE `key` = :key")
+    suspend fun deleteKey(key: String)
+
+    @Query("DELETE FROM meta")
+    suspend fun clear()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(row: MetaRow)

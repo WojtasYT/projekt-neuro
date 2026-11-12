@@ -157,3 +157,15 @@ fun ProfileRow.toDomain() = UserProfile(
     lastMindState?.let { runCatching { MindState.valueOf(it) }.getOrNull() },
     notesToSelf, updatedAt,
 )
+
+fun lab.neurotrino.app.domain.SourceItem.toRow() = SourceRow(
+    id, title, authors, year, publisher, doi, url, sourceType, notes, accessedAt, createdAt,
+)
+
+fun SourceRow.toDomain() = lab.neurotrino.app.domain.SourceItem(
+    id, title, authors, year, publisher, doi, url, sourceType, notes, accessedAt, createdAt,
+)
+
+fun lab.neurotrino.app.domain.AttachmentMeta.toRow() = AttachmentRow(
+    id, thoughtId, name, mime, uri, createdAt, size,
+)

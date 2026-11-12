@@ -6,7 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import lab.neurotrino.app.NeurotrinoApp
 import lab.neurotrino.app.data.ai.AiGateway
-import lab.neurotrino.app.data.ai.AiUnavailableException
 import lab.neurotrino.app.domain.AiMode
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HypothesisFields
@@ -15,6 +14,7 @@ import lab.neurotrino.app.domain.Project
 import lab.neurotrino.app.domain.Provenance
 import lab.neurotrino.app.domain.ReadingItem
 import lab.neurotrino.app.domain.RelationType
+import lab.neurotrino.app.domain.SourceItem
 import lab.neurotrino.app.domain.Thought
 import lab.neurotrino.app.domain.ThoughtStatus
 import lab.neurotrino.app.domain.UserProfile
@@ -22,20 +22,10 @@ import lab.neurotrino.app.domain.lastResumable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-data class ShellState(
-    val ready: Boolean = false,
-    val thoughts: List<Thought> = emptyList(),
-    val projects: List<Project> = emptyList(),
-    val profile: UserProfile = UserProfile(),
-    val captureOpen: Boolean = false,
-    val captureDraft: String = "",
-    val pendingShare: String? = null,
-    val error: String? = null,
-)
 
 class ShellViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = (application as NeurotrinoApp).container.repository
@@ -43,13 +33,15 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
     private val ready = MutableStateFlow(false)
     val captureOpen = MutableStateFlow(false)
     val captureDraft = MutableStateFlow("")
-    val error = MutableStateFlow<String?>(null)
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
     val readyState: StateFlow<Boolean> = ready
 
     val thoughts = repo.thoughts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val projects = repo.projects.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val relationships = repo.relationships.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val reading = repo.reading.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val sources = repo.sources.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val profile = repo.profile.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile())
 
     val resume: StateFlow<Thought?> = thoughts
@@ -57,11 +49,18 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
-        viewModelScope.launch {
-            runCatching { repo.start() }
-                .onFailure { error.value = "Nie udało się otworzyć lokalnej bazy." }
-            ready.value = true
-        }
+        viewModelScope.launch { boot() }
+    }
+
+    private suspend fun boot() {
+        runCatching { repo.start() }
+            .onFailure { _error.value = it.message ?: "Nie udało się otworzyć lokalnej bazy." }
+        ready.value = true
+    }
+
+    fun retryAfterError() {
+        _error.value = null
+        viewModelScope.launch { boot() }
     }
 
     fun openCapture(preset: String? = null) {
@@ -77,13 +76,17 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
         captureDraft.value = text
     }
 
-    fun capture(text: String, openStudio: (String) -> Unit, stay: Boolean) {
+    /** Saves the drafted capture; returns the created ids via callback for navigation. */
+    fun capture(text: String, onSaved: (String?) -> Unit, stay: Boolean = false) {
         viewModelScope.launch {
-            val created = repo.capture(text)
+            val created = runCatching { repo.capture(text) }.getOrElse {
+                _error.value = "Nie udało się zapisać myśli."
+                emptyList()
+            }
             captureDraft.value = ""
             captureOpen.value = false
-            val first = created.firstOrNull() ?: return@launch
-            if (!stay) openStudio(first.id)
+            if (created.isEmpty()) return@launch
+            onSaved(if (stay) null else created.first().id)
         }
     }
 
@@ -114,10 +117,6 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repo.addExpansion(id, text, provenance) }
     }
 
-    fun setHypothesis(id: String, fields: HypothesisFields) {
-        viewModelScope.launch { repo.setHypothesis(id, fields) }
-    }
-
     fun deleteThought(id: String) {
         viewModelScope.launch { repo.deleteThought(id) }
     }
@@ -140,6 +139,10 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
 
     fun attachToProject(thoughtId: String, projectId: String) {
         viewModelScope.launch { repo.attachThoughtToProject(thoughtId, projectId) }
+    }
+
+    fun detachFromProject(thoughtId: String, projectId: String) {
+        viewModelScope.launch { repo.detachThoughtFromProject(thoughtId, projectId) }
     }
 
     fun addLink(from: String, to: String, fromKind: GraphKind, toKind: GraphKind, type: RelationType, why: String) {
@@ -167,11 +170,32 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addImage(thoughtId: String, uri: Uri, name: String, mime: String, size: Long) {
-        viewModelScope.launch { repo.addAttachment(thoughtId, uri, name, mime, size) }
+        viewModelScope.launch {
+            runCatching { repo.addAttachment(thoughtId, uri, name, mime, size) }
+                .onFailure { _error.value = "Nie udało się dołączyć pliku." }
+        }
     }
 
     fun deleteAttachment(id: String) {
         viewModelScope.launch { repo.deleteAttachment(id) }
+    }
+
+    fun addSource(title: String, authors: String, url: String, doi: String, notes: String) {
+        viewModelScope.launch {
+            repo.addSource(title, authors, url, doi, notes)
+        }
+    }
+
+    fun attachSource(thoughtId: String, sourceId: String) {
+        viewModelScope.launch { repo.attachSourceToThought(thoughtId, sourceId) }
+    }
+
+    fun detachSource(thoughtId: String, sourceId: String) {
+        viewModelScope.launch { repo.detachSourceFromThought(thoughtId, sourceId) }
+    }
+
+    fun deleteSource(sourceId: String) {
+        viewModelScope.launch { repo.deleteSource(sourceId) }
     }
 
     suspend fun exportJson(): String = repo.exportJson()
@@ -183,7 +207,7 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun wipe() {
-        viewModelScope.launch { repo.wipe(getApplication()) }
+        viewModelScope.launch { repo.wipe() }
     }
 
     fun thoughtFlow(id: String) = repo.thought(id)
@@ -195,8 +219,6 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
         runCatching { AiGateway.request(mode, thought, profile.value) }
 
     fun handleIncomingText(text: String) {
-        viewModelScope.launch {
-            repo.capture(text)
-        }
+        viewModelScope.launch { repo.capture(text) }
     }
 }
