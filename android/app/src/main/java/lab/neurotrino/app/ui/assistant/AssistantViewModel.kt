@@ -207,6 +207,7 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
     fun retry() {
         val convoId = _selectedId.value ?: return
         if (_sending.value) return
+        if (messages.value.lastOrNull()?.role != "user") return // nie ma czego ponawiać
         sendJob = viewModelScope.launch {
             val profileNow = profile.value
             if (!AiGateway.configured(profileNow)) {
