@@ -1,3 +1,8 @@
+> **AKTUALIZACJA (2026-11-14, po wdrożeniu V4):** ten dokument opisuje audyt sprzed wdrożenia.
+> Stan faktyczny po implementacji: patrz `docs/v4/FINAL_QA_REPORT.md` (sekcje 2–9) oraz `docs/v4/TECHNICAL_DEBT.md`
+> (D1–D15 ze statusami). Krótko: Room v2 + migracja bez fallbacku, backend kontraktowy (15 testów),
+> pełny Asystent w UI, eksport v2 z załącznikami, realny health-check. Emulator: nadal niedostępny.
+
 # CURRENT_ARCHITECTURE — stan przed przebudową V4 (2026-11-14)
 
 ```
