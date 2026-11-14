@@ -502,6 +502,7 @@ class LabRepository(
             attachments = attachmentDtos(),
             profile = profile.toDto(),
         )
+    }
 
     /** Załączniki do eksportu: treść binarna jako base64; brakujący plik = omittedReason (jawnie). */
     private suspend fun attachmentDtos(): List<AttachmentDto> = withContext(Dispatchers.IO) {
@@ -518,7 +519,6 @@ class LabRepository(
                 omittedReason = if (bytes == null) "plik nie istnieje lub jest pusty" else null,
             )
         }
-    }
     }
 
     suspend fun importJson(raw: String, replace: Boolean): ImportSummary {
