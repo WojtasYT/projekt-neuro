@@ -185,15 +185,21 @@ class AssistantViewModel(application: Application) : AndroidViewModel(applicatio
         val clean = text.trim()
         if (clean.isEmpty() || _sending.value) return
         sendJob = viewModelScope.launch {
-            val profileNow = profile.value
-            if (!AiGateway.configured(profileNow)) {
-                _lastError.value = "Asystent nie jest skonfigurowany. W Ustawieniach podaj adres bramki AI — klucz zostaje na serwerze."
-                _lastRetryable.value = false
-                return@launch
+            try {
+                val profileNow = profile.value
+                if (!AiGateway.configured(profileNow)) {
+                    _lastError.value = "Asystent nie jest skonfigurowany. W Ustawieniach podaj adres bramki AI — klucz zostaje na serwerze."
+                    _lastRetryable.value = false
+                    return@launch
+                }
+                val convoId = ensureConversation()
+                repo.addConversationMessage(convoId, "user", clean, Provenance.user)
+                requestCompletion(convoId)
+            } catch (e: Exception) {
+                _lastError.value = "Nie udało się zapisać wiadomości: ${e.message ?: "błąd bazy danych"}"
+                _lastRetryable.value = true
+                _sending.value = false
             }
-            val convoId = ensureConversation()
-            repo.addConversationMessage(convoId, "user", clean, Provenance.user)
-            requestCompletion(convoId)
         }
     }
 
