@@ -1,0 +1,12 @@
+{
+  "name": "neurolab-ai-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NeuroLab AI Gateway — OpenAI-compatible proxy z trybami, kontekstem i /v1/context/preview",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test ./test/gateway.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

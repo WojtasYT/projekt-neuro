@@ -1,0 +1,35 @@
+name: Backend
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install (zero dependencies — weryfikacja braku sieci)
+        working-directory: backend
+        run: |
+          test ! -f package-lock.json || npm ci --ignore-scripts
+          echo "Brak zależności zewnętrznych — testy działają na node:* i wbudowanym fetch."
+      - name: Syntax check
+        working-directory: backend
+        run: |
+          node --check server.js
+          node --check lib/context.js
+          node --check lib/provider.js
+          node --check lib/ratelimit.js
+      - name: Unit tests (fake provider — bez klucza API)
+        working-directory: backend
+        run: npm test

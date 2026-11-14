@@ -271,19 +271,19 @@ The app is for learning, conceptual modelling, safe creativity, and research lit
 
 First inspect the existing repository. Preserve any working code and user content. Do not assume the repo is empty. Identify the current stack, routes, build/test commands, deployment configuration, and existing assets before choosing an implementation path.
 
-If the repo is empty or has no established stack, prefer a maintainable, mobile-first PWA with:
-- TypeScript and a modern React-based setup (Vite is a reasonable default for a client-first PWA).
-- A consistent accessible component system and a restrained design-token layer.
-- IndexedDB for personal thoughts, graph data, projects, settings, and local attachments; use a small, typed data-access layer and schema migrations.
-- Local-first operation: core capture, browsing, editing, search, projects, reading list, and graph data must remain usable offline.
-- A service worker/PWA manifest with clear offline capability and installability where supported.
-- A provider-agnostic AI service interface. Do not bind the product to a single model vendor unless the repo already requires it.
-- A safe server-side AI gateway or serverless function for provider credentials. Never ship API keys in frontend code, commit them, or store them in localStorage/IndexedDB as if that were secure. If no backend/hosting target or credentials are available, build a truthful adapter/configuration boundary and keep non-AI functionality fully usable; do not fake a live AI response.
-- An optional web-research adapter with source metadata and visible online/offline state.
-- A graph library only if it materially improves the experience; ensure mobile fallback.
-- Export/import of the user's data in a documented JSON format. Validate imports and make a backup before destructive replacement.
+**Primary product: native Android (Kotlin + Jetpack Compose) in `android/`.** Room/SQLite is the local source of truth. DataStore/Room hold preferences. The existing Vite/React PWA in the repository root is a **preserved prototype/reference only** — do not add features to it as if it were the shipping app, and do not delete it until the owner explicitly approves.
 
-Use the repository's established stack if it is already healthy. Do not rewrite the whole app merely to follow the preference above. Avoid adding dependencies without a clear benefit. Keep the code modular, typed, tested, and understandable by a future agent.
+Android implementation preferences:
+- Jetpack Compose for all primary UI; no WebView/TWA as a substitute.
+- Room with stable IDs and versioned migrations; JSON export/import `neurotrino-lab` v1, including a documented path from the PWA export.
+- Local-first: capture, edit, search, projects, relationships, library, and export work offline.
+- Provider-agnostic AI via a user-configured server gateway. Never ship API keys in the APK or repository. If no gateway is configured, show a truthful disabled state; do not fake a live model reply.
+- Photo Picker and Storage Access Framework for user-selected files. Share/process-text intents only when the user invokes Share.
+- Notifications off by default.
+
+The PWA used IndexedDB, a service worker, and a responsive web shell. Those are legacy notes, not the current architecture target.
+
+Avoid adding dependencies without a clear benefit. Keep the code modular, typed, tested, and understandable by a future agent.
 
 ### Privacy and persistence
 

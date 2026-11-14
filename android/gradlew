@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Gradle start-up script for UN*X — invokes the wrapper via its classpath
+# so it works regardless of the manifest in gradle-wrapper.jar.
+#
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+APP_HOME=$(cd -- "$DIR" && pwd -P)
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+WRAPPER_LAUNCHER=org.gradle.wrapper.GradleWrapperMain
+
+if [ -n "$JAVA_HOME" ] ; then
+    JAVA_EXE="$JAVA_HOME/bin/java"
+    if [ ! -x "$JAVA_EXE" ] ; then
+        echo "Error: JAVA_HOME is set to an invalid directory: $JAVA_HOME" >&2
+        echo "Please set JAVA_HOME to a valid 17+ JDK installation." >&2
+        exit 1
+    fi
+else
+    JAVA_EXE=java
+    if ! command -v java >/dev/null 2>&1 ; then
+        echo "Error: no 'java' on PATH and JAVA_HOME is unset. Install a 17+ JDK." >&2
+        exit 1
+    fi
+fi
+
+# Increase the maximum file descriptors if we can, ignore failures.
+MAX_FD=maximum
+if [ "$cygwin" = "true" ] || [ "$msys" = "true" ] ; then
+    "$JAVA_EXE" -classpath "$WRAPPER_JAR" "$WRAPPER_LAUNCHER" "$@"
+    exit $?
+fi
+if command -v ulimit >/dev/null 2>&1 ; then
+    ulimit -n $MAX_FD >/dev/null 2>&1 || true
+fi
+
+exec "$JAVA_EXE" $JAVA_OPTS $GRADLE_OPTS -classpath "$WRAPPER_JAR" "$WRAPPER_LAUNCHER" "$@"
