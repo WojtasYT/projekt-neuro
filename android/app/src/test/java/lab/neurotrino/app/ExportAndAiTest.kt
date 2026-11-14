@@ -134,6 +134,66 @@ class ExportAndAiTest {
     }
 
     @Test
+    fun rejectsAttachmentPointingAtUnknownThought() {
+        val json = """
+            {
+              "format": "$EXPORT_FORMAT",
+              "version": $EXPORT_VERSION,
+              "exportedAt": "2026-11-14T00:00:00Z",
+              "thoughts": [], "projects": [], "relationships": [], "sources": [],
+              "readingItems": [], "sparks": [],
+              "conversations": [], "messages": [],
+              "attachments": [
+                { "id": "att1", "thoughtId": "duch", "name": "obraz.png", "mime": "image/png",
+                  "size": 4, "createdAt": "2026-11-14T00:00:00Z", "dataBase64": "aGk=" }
+              ],
+              "profile": {
+                "id": "local", "displayName": "", "interests": [], "currentFocus": "",
+                "onboarded": true, "theme": "dark", "aiDefaultMode": "impuls",
+                "aiConfig": {}, "remindersEnabled": false, "notesToSelf": "", "updatedAt": "2026-11-14T00:00:00Z"
+              }
+            }
+        """.trimIndent()
+        try {
+            parseExport(json)
+            throw AssertionError("expected rejection")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("myśli") || e.message!!.contains("mysli") || e.message!!.contains("myśli"))
+        }
+    }
+
+    @Test
+    fun acceptsAttachmentWithMatchingThought() {
+        val json = """
+            {
+              "format": "$EXPORT_FORMAT",
+              "version": $EXPORT_VERSION,
+              "exportedAt": "2026-11-14T00:00:00Z",
+              "thoughts": [
+                { "id": "th1", "title": "t", "rawText": "r", "content": "c", "types": [],
+                  "status": "seed", "tags": [], "createdAt": "a", "updatedAt": "a", "lastOpenedAt": "a",
+                  "provenance": "user" }
+              ],
+              "projects": [], "relationships": [], "sources": [],
+              "readingItems": [], "sparks": [],
+              "conversations": [], "messages": [],
+              "attachments": [
+                { "id": "att1", "thoughtId": "th1", "name": "obraz.png", "mime": "image/png",
+                  "size": 4, "createdAt": "2026-11-14T00:00:00Z", "dataBase64": "aGk=" }
+              ],
+              "profile": {
+                "id": "local", "displayName": "", "interests": [], "currentFocus": "",
+                "onboarded": true, "theme": "dark", "aiDefaultMode": "impuls",
+                "aiConfig": {}, "remindersEnabled": false, "notesToSelf": "", "updatedAt": "2026-11-14T00:00:00Z"
+              }
+            }
+        """.trimIndent()
+        val parsed = parseExport(json)
+        assertEquals(1, parsed.attachments.size)
+        assertEquals("aGk=", parsed.attachments[0].dataBase64)
+    }
+
+    @Test
     fun rejectsMixedVersionConversationsClaim() {
         // v1 nie może zawierać rozmów — ale parser toleruje brak pola (domyślna lista pusta)
         val json = """

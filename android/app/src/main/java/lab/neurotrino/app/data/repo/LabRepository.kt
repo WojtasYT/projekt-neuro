@@ -12,6 +12,7 @@ import lab.neurotrino.app.data.db.jsonPretty
 import lab.neurotrino.app.data.db.starterLibrary
 import lab.neurotrino.app.data.db.toDomain
 import lab.neurotrino.app.data.db.toRow
+import lab.neurotrino.app.data.export.AttachmentDto
 import lab.neurotrino.app.data.export.LabExportFile
 import lab.neurotrino.app.data.export.SourceDto
 import lab.neurotrino.app.data.export.parseExport
@@ -27,6 +28,7 @@ import lab.neurotrino.app.domain.Expansion
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HistoryNote
 import lab.neurotrino.app.domain.HypothesisFields
+import lab.neurotrino.app.domain.ImportSummary
 import lab.neurotrino.app.domain.Project
 import lab.neurotrino.app.domain.ProjectStatus
 import lab.neurotrino.app.domain.Provenance
@@ -497,11 +499,29 @@ class LabRepository(
             sparks = emptyList(),
             conversations = db.conversations().all().map { it.toDomain().toDto() },
             messages = db.messages().all().map { it.toDomain().toDto() },
+            attachments = attachmentDtos(),
             profile = profile.toDto(),
         )
+
+    /** Załączniki do eksportu: treść binarna jako base64; brakujący plik = omittedReason (jawnie). */
+    private suspend fun attachmentDtos(): List<AttachmentDto> = withContext(Dispatchers.IO) {
+        db.attachments().all().map { row ->
+            val file = runCatching {
+                val uri = java.net.URI(row.uri)
+                File(uri)
+            }.getOrNull()
+            val bytes = file?.takeIf { it.isFile && it.length() > 0 }?.readBytes()
+            AttachmentDto(
+                id = row.id, thoughtId = row.thoughtId, name = row.name, mime = row.mime,
+                size = row.size, createdAt = row.createdAt,
+                dataBase64 = bytes?.let { java.util.Base64.getEncoder().encodeToString(it) },
+                omittedReason = if (bytes == null) "plik nie istnieje lub jest pusty" else null,
+            )
+        }
+    }
     }
 
-    suspend fun importJson(raw: String, replace: Boolean): Pair<Int, Int> {
+    suspend fun importJson(raw: String, replace: Boolean): ImportSummary {
         val data = parseExport(raw)
         val backup = snapshot()
         val backupKey = "backup:pre-import:${backup.exportedAt}"
@@ -531,13 +551,42 @@ class LabRepository(
         db.conversations().upsertAll(data.conversations.map { it.toDomain().toRow() })
         db.messages().upsertAll(data.messages.map { it.toDomain().toRow() })
         db.thoughts().upsertAll(data.thoughts.map { it.toDomain().toRow() })
+        val restoredAttachments = restoreAttachments(data.attachments)
         db.projects().upsertAll(data.projects.map { it.toDomain().toRow() })
         db.relationships().upsertAll(data.relationships.map { it.toDomain().toRow() })
         db.reading().upsertAll(data.readingItems.map { it.toDomain().toRow() })
         db.sources().upsertAll(data.sources.map { it.toDomain().toRow() })
         db.profile().upsert(data.profile.toDomain().toRow())
-        return data.thoughts.size to data.projects.size
+        return ImportSummary(
+            thoughts = data.thoughts.size,
+            projects = data.projects.size,
+            conversations = data.conversations.size,
+            messages = data.messages.size,
+            attachments = restoredAttachments,
+        )
     }
+
+    /** Przywróć załączniki z eksportu (binaria base64 → pliki w filesDir/attachments + rekordy). */
+    private suspend fun restoreAttachments(attachments: List<AttachmentDto>): Int =
+        withContext(Dispatchers.IO) {
+            var restored = 0
+            val dir = File(appContext.filesDir, "attachments").apply { mkdirs() }
+            for (dto in attachments) {
+                val payload = dto.dataBase64 ?: continue // jawnie pominięte przy eksporcie
+                val bytes = runCatching { java.util.Base64.getDecoder().decode(payload) }.getOrNull() ?: continue
+                val safeName = dto.name.replace(Regex("[^A-Za-z0-9._-]"), "_").take(72).ifBlank { "plik" }
+                val dest = File(dir, "${dto.id}-$safeName")
+                dest.writeBytes(bytes)
+                db.attachments().upsert(
+                    lab.neurotrino.app.data.db.AttachmentRow(
+                        id = dto.id, thoughtId = dto.thoughtId, name = dto.name, mime = dto.mime,
+                        uri = dest.toURI().toString(), createdAt = dto.createdAt, size = bytes.size.toLong(),
+                    )
+                )
+                restored++
+            }
+            restored
+        }
 
     private suspend fun pruneImportBackups(keep: Int) {
         val keys = db.meta().backupKeys()

@@ -153,6 +153,15 @@ data class UserProfile(
     val updatedAt: String = "",
 )
 
+/** Wynik importu — transparentne podsumowanie dla UI. */
+data class ImportSummary(
+    val thoughts: Int,
+    val projects: Int,
+    val conversations: Int,
+    val messages: Int,
+    val attachments: Int,
+)
+
 fun previewTitle(text: String): String {
     val line = text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: return ""
     return if (line.length > 72) line.take(69) + "…" else line

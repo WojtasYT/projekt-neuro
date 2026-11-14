@@ -200,7 +200,7 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun exportJson(): String = repo.exportJson()
 
-    suspend fun importJson(raw: String, replace: Boolean): Pair<Int, Int> = repo.importJson(raw, replace)
+    suspend fun importJson(raw: String, replace: Boolean): lab.neurotrino.app.domain.ImportSummary = repo.importJson(raw, replace)
 
     fun removeSamples() {
         viewModelScope.launch { repo.removeSamples() }

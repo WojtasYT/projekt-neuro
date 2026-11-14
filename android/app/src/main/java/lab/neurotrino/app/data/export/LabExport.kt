@@ -43,6 +43,7 @@ data class LabExportFile(
     val sparks: List<SparkDto> = emptyList(),
     val conversations: List<ConversationDto> = emptyList(),
     val messages: List<MessageDto> = emptyList(),
+    val attachments: List<AttachmentDto> = emptyList(),
     val profile: ProfileDto,
 )
 
@@ -162,6 +163,19 @@ data class MessageDto(
     /** user | ai — odpowiedzi modelu nigdy nie są traktowane jako wiedza użytkownika. */
     val provenance: String,
     val createdAt: String,
+)
+
+@Serializable
+data class AttachmentDto(
+    val id: String,
+    val thoughtId: String,
+    val name: String,
+    val mime: String,
+    val size: Long,
+    val createdAt: String,
+    /** Base64 binarnej treści pliku; uri lokalne nie jest przenośne, więc go nie eksportujemy. */
+    val dataBase64: String? = null,
+    val omittedReason: String? = null,
 )
 
 @Serializable
@@ -298,6 +312,11 @@ fun parseExport(raw: String): LabExportFile {
     parsed.messages.forEach { m ->
         if (m.id.isBlank()) throw IllegalArgumentException("Wiadomość bez identyfikatora.")
         if (m.conversationId !in known) throw IllegalArgumentException("Wiadomość odwołuje się do nieistniejącej rozmowy (${m.conversationId}).")
+    }
+    val knownThoughts = parsed.thoughts.map { it.id }.toSet()
+    parsed.attachments.forEach { a ->
+        if (a.id.isBlank()) throw IllegalArgumentException("Załącznik bez identyfikatora.")
+        if (a.thoughtId !in knownThoughts) throw IllegalArgumentException("Załącznik odwołuje się do nieistniejącej myśli (${a.thoughtId}).")
     }
     // integralność referencji message -> conversation jest twardym wymogiem formatu v2
     return parsed

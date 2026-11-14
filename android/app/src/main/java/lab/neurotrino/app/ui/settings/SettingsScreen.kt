@@ -70,7 +70,7 @@ fun SettingsScreen(
     profile: UserProfile,
     onChange: (UserProfile) -> Unit,
     onExport: suspend () -> String,
-    onImport: suspend (String, Boolean) -> Pair<Int, Int>,
+    onImport: suspend (String, Boolean) -> lab.neurotrino.app.domain.ImportSummary,
     onWriteExport: (Uri, String) -> Unit,
     onReadImport: suspend (Uri) -> String,
     onRemoveSamples: () -> Unit,
@@ -129,8 +129,8 @@ fun SettingsScreen(
                         runCatching {
                             val raw = onReadImport(uri)
                             onImport(raw, importReplace)
-                        }.onSuccess { (t, p) ->
-                            message = true to "Wczytano $t myśli i $p projektów."
+                        }.onSuccess { s ->
+                            message = true to "Wczytano: ${s.thoughts} myśli, ${s.projects} projektów, ${s.conversations} rozmów, ${s.messages} wiadomości, ${s.attachments} załączników."
                         }.onFailure {
                             message = false to "Nie udało się wczytać: ${it.message ?: "nieprawidłowy plik"}"
                         }
