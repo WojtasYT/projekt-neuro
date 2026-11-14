@@ -1,7 +1,7 @@
 package lab.neurotrino.app.domain
 
 const val EXPORT_FORMAT = "neurotrino-lab"
-const val EXPORT_VERSION = 1
+const val EXPORT_VERSION = 2
 
 enum class ThoughtType { observation, question, hypothesis, model, analogy, invention, reflection, project_note, reading_note, other }
 enum class ThoughtStatus { seed, exploring, paused, connected, checking, developed, archived }
@@ -13,7 +13,8 @@ enum class RelationType {
 enum class ProjectStatus { active, paused, incubating, archived }
 enum class ReadingStatus { unopened, exploring, paused, finished }
 enum class MindState { fog, curiosity, lowEnergy, tooMany, impulse }
-enum class AiMode { iskra, sokrates, lacznik, adwokat, weryfikator, rozwiniecie, powrot }
+/** Tryby asystenta zgodne z backendem (AI_GATEWAY_CONTRACT). Nazwy są częścią kontraktu. */
+enum class AssistantMode { impuls, rozwiniecie, analiza, badanie, adwersarz }
 enum class GraphKind { thought, project, reading, source, concept }
 
 data class HypothesisFields(
@@ -143,7 +144,7 @@ data class UserProfile(
     val currentFocus: String = "",
     val onboarded: Boolean = false,
     val theme: String = "dark",
-    val aiDefaultMode: AiMode = AiMode.iskra,
+    val aiDefaultMode: AssistantMode = AssistantMode.impuls,
     val gatewayUrl: String = "",
     val model: String = "",
     val remindersEnabled: Boolean = false,

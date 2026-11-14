@@ -44,7 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import lab.neurotrino.app.R
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.data.ai.AiGateway
+import lab.neurotrino.app.data.ai.AiHealth
+import lab.neurotrino.app.domain.AssistantMode
 import lab.neurotrino.app.domain.UserProfile
 import lab.neurotrino.app.ui.components.InstrumentPanel
 import lab.neurotrino.app.ui.components.Kicker
@@ -81,6 +83,12 @@ fun SettingsScreen(
     var showImportMode by remember { mutableStateOf(false) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
+    var gateHealth by remember { mutableStateOf<AiHealth?>(null) }
+    var gateChecking by remember { mutableStateOf(false) }
+    var gateCheckedAt by remember { mutableStateOf<String?>(null) }
+    var modelList by remember { mutableStateOf<List<String>?>(null) }
+    var modelsLoading by remember { mutableStateOf(false) }
+    var modelsError by remember { mutableStateOf<String?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
@@ -199,15 +207,60 @@ fun SettingsScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(profile.model, { onChange(profile.copy(model = it)) }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.settings_model)) }, singleLine = true)
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    if (profile.gatewayUrl.isNotBlank()) stringResource(R.string.settings_ai_set) else stringResource(R.string.ai_unconfigured_short),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (profile.gatewayUrl.isNotBlank()) Cyan else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Button(
+                    onClick = {
+                        if (gateChecking) return@Button
+                        scope.launch {
+                            gateChecking = true
+                            gateHealth = AiGateway.health(profile)
+                            gateCheckedAt = java.time.Instant.now().toString()
+                            gateChecking = false
+                        }
+                    },
+                    enabled = !gateChecking,
+                ) { Text(stringResource(if (gateChecking) R.string.gate_checking else R.string.gate_check)) }
+                gateCheckedAt?.let { at ->
+                    Text(stringResource(R.string.gate_last_check, at), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                gateHealth?.let { h ->
+                    val (text, color) = when {
+                        h.configured && h.reachable -> stringResource(R.string.gate_ok_detail, h.detail) to Cyan
+                        h.configured && !h.reachable -> (h.detail.ifBlank { stringResource(R.string.gate_unreachable) }) to Amber
+                        else -> stringResource(R.string.gate_unconfigured) to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Text(text, style = MaterialTheme.typography.bodySmall, color = color)
+                }
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (modelsLoading) return@OutlinedButton
+                        scope.launch {
+                            modelsLoading = true
+                            modelsError = null
+                            runCatching { AiGateway.models(profile) }
+                                .onSuccess { modelList = it }
+                                .onFailure { e -> modelsError = e.message ?: e.toString(); modelList = null }
+                            modelsLoading = false
+                        }
+                    },
+                    enabled = !modelsLoading && profile.gatewayUrl.isNotBlank(),
+                ) { Text(stringResource(if (modelsLoading) R.string.gate_checking else R.string.gate_fetch_models)) }
+                modelsError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                modelList?.let { list ->
+                    if (list.isEmpty()) {
+                        Text(stringResource(R.string.gate_models_empty), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            list.forEach { m ->
+                                FilterChip(selected = profile.model == m, onClick = { onChange(profile.copy(model = m)) }, label = { Text(m) })
+                            }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.settings_ai_mode), style = MaterialTheme.typography.labelMedium)
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AiMode.entries.forEach { mode ->
+                    AssistantMode.entries.forEach { mode ->
                         FilterChip(selected = profile.aiDefaultMode == mode, onClick = { onChange(profile.copy(aiDefaultMode = mode)) }, label = { Text(stringResource(mode.labelRes())) })
                     }
                 }

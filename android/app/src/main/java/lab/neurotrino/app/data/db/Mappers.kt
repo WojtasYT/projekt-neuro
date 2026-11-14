@@ -1,6 +1,8 @@
 package lab.neurotrino.app.data.db
 
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
+import lab.neurotrino.app.domain.AssistantMessage
+import lab.neurotrino.app.domain.Conversation
 import lab.neurotrino.app.domain.Expansion
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HistoryNote
@@ -152,7 +154,7 @@ fun UserProfile.toRow() = ProfileRow(
 
 fun ProfileRow.toDomain() = UserProfile(
     displayName, decodeList(interestsJson), currentFocus, onboarded, theme,
-    runCatching { AiMode.valueOf(aiDefaultMode) }.getOrDefault(AiMode.iskra),
+    runCatching { AssistantMode.valueOf(aiDefaultMode) }.getOrDefault(AssistantMode.impuls),
     gatewayUrl, model, remindersEnabled,
     lastMindState?.let { runCatching { MindState.valueOf(it) }.getOrNull() },
     notesToSelf, updatedAt,
@@ -168,4 +170,27 @@ fun SourceRow.toDomain() = lab.neurotrino.app.domain.SourceItem(
 
 fun lab.neurotrino.app.domain.AttachmentMeta.toRow() = AttachmentRow(
     id, thoughtId, name, mime, uri, createdAt, size,
+)
+
+fun Conversation.toRow() = ConversationRow(
+    id = id, title = title, projectId = projectId, sourceThoughtId = sourceThoughtId,
+    mode = mode.name, archived = archived, createdAt = createdAt, updatedAt = updatedAt,
+)
+
+fun ConversationRow.toDomain() = Conversation(
+    id = id, title = title, projectId = projectId, sourceThoughtId = sourceThoughtId,
+    mode = runCatching { AssistantMode.valueOf(mode) }.getOrDefault(AssistantMode.impuls),
+    archived = archived, createdAt = createdAt, updatedAt = updatedAt,
+)
+
+fun AssistantMessage.toRow() = MessageRow(
+    id = id, conversationId = conversationId, role = role, content = content,
+    model = model, provenance = provenance.name, createdAt = createdAt,
+)
+
+fun MessageRow.toDomain() = AssistantMessage(
+    id = id, conversationId = conversationId, role = role, content = content,
+    model = model,
+    provenance = runCatching { Provenance.valueOf(provenance) }.getOrDefault(Provenance.user),
+    createdAt = createdAt,
 )

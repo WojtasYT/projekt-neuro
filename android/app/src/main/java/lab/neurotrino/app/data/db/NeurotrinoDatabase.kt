@@ -4,8 +4,9 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HistoryNote
 import lab.neurotrino.app.domain.HypothesisFields
@@ -30,8 +31,9 @@ import java.util.concurrent.atomic.AtomicBoolean
     entities = [
         ThoughtRow::class, ProjectRow::class, RelationshipRow::class, ReadingRow::class,
         SourceRow::class, AttachmentRow::class, ProfileRow::class, MetaRow::class,
+        ConversationRow::class, MessageRow::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class NeurotrinoDatabase : RoomDatabase() {
@@ -43,19 +45,42 @@ abstract class NeurotrinoDatabase : RoomDatabase() {
     abstract fun attachments(): AttachmentDao
     abstract fun profile(): ProfileDao
     abstract fun meta(): MetaDao
+    abstract fun conversations(): ConversationDao
+    abstract fun messages(): MessageDao
 
     companion object {
         private val seeding = AtomicBoolean(false)
 
         fun create(context: Context): NeurotrinoDatabase =
             Room.databaseBuilder(context, NeurotrinoDatabase::class.java, "neurotrino-lab.db")
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                    }
-                })
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
+    }
+}
+
+/**
+ * Room v1 → v2: dokłada rozmowy i ich wiadomości (V4 P0 — pamięć asystenta).
+ * DDL musi ODPOWIADAĆ DOKŁADNIE encjiom (Room waliduje schemat przy otwarciu).
+ * Brak fallbackToDestructiveMigration — dane użytkownika są nieodwracalne.
+ */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `conversations` (" +
+                "`id` TEXT NOT NULL, `title` TEXT NOT NULL, `projectId` TEXT, " +
+                "`sourceThoughtId` TEXT, `mode` TEXT NOT NULL, `archived` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, `updatedAt` TEXT NOT NULL, " +
+                "PRIMARY KEY(`id`))"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `messages` (" +
+                "`id` TEXT NOT NULL, `conversationId` TEXT NOT NULL, `role` TEXT NOT NULL, " +
+                "`content` TEXT NOT NULL, `model` TEXT, `provenance` TEXT NOT NULL, `createdAt` TEXT NOT NULL, " +
+                "PRIMARY KEY(`id`), " +
+                "FOREIGN KEY(`conversationId`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_conversationId` ON `messages` (`conversationId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_conversations_updatedAt` ON `conversations` (`updatedAt`)")
     }
 }
 
@@ -76,7 +101,7 @@ suspend fun NeurotrinoDatabase.ensureSeeded() {
 fun defaultProfile() = UserProfile(
     interests = listOf("neurobiologia", "neurochemia", "percepcja", "kosmologia", "inżynieria", "filozofia"),
     theme = "dark",
-    aiDefaultMode = AiMode.iskra,
+    aiDefaultMode = AssistantMode.impuls,
 )
 
 fun starterLibrary(stamp: String) = listOf(

@@ -53,8 +53,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import lab.neurotrino.app.R
-import lab.neurotrino.app.data.ai.AiGateway
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
+import lab.neurotrino.app.domain.thoughtDispatchPreview
 import lab.neurotrino.app.domain.AttachmentMeta
 import lab.neurotrino.app.domain.HypothesisFields
 import lab.neurotrino.app.domain.Project
@@ -110,7 +110,8 @@ fun StudioScreen(
     onAttachSource: (String) -> Unit,
     onDetachSource: (String) -> Unit,
     onDeleteSource: (String) -> Unit,
-    onAskAi: suspend (AiMode, Thought) -> Result<String>,
+    onAskAi: suspend (AssistantMode, Thought) -> Result<String>,
+    onOpenAssistant: () -> Unit,
     onOpenThought: (String) -> Unit,
     onOpenProject: (String) -> Unit,
 ) {
@@ -147,7 +148,7 @@ fun StudioScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var linkDialog by remember { mutableStateOf(false) }
     var sourceDialog by remember { mutableStateOf(false) }
-    var aiMode by remember { mutableStateOf(AiMode.iskra) }
+    var aiMode by remember { mutableStateOf(AssistantMode.impuls) }
     var consent by remember { mutableStateOf(false) }
     var aiText by remember { mutableStateOf<String?>(null) }
     var aiError by remember { mutableStateOf<String?>(null) }
@@ -462,7 +463,13 @@ fun StudioScreen(
             // ── AI assistant (optional, explicit consent) ────────────────────
             Spacer(Modifier.height(10.dp))
             InstrumentPanel(accent = Indigo.copy(alpha = 0.45f)) {
-                Kicker(stringResource(R.string.settings_ai))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Kicker(stringResource(R.string.settings_ai))
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onOpenAssistant) {
+                        Text(stringResource(R.string.assistant_open), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
                 when {
                     !gatewayConfigured -> {
                         Spacer(Modifier.height(6.dp))
@@ -474,14 +481,14 @@ fun StudioScreen(
                     }
                     else -> {
                         Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AiMode.entries.forEach { mode ->
+                            AssistantMode.entries.forEach { mode ->
                                 FilterChip(selected = aiMode == mode, onClick = { aiMode = mode }, label = { Text(stringResource(mode.labelRes())) })
                             }
                         }
                         Text(stringResource(aiMode.hintRes()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(6.dp))
                         Text(stringResource(R.string.ai_will_send), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(AiGateway.consentPreview(current), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(thoughtDispatchPreview(current), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(consent, { consent = it })
                             Text(stringResource(R.string.ai_consent), style = MaterialTheme.typography.bodyMedium)

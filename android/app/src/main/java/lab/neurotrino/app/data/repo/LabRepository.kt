@@ -17,7 +17,10 @@ import lab.neurotrino.app.data.export.SourceDto
 import lab.neurotrino.app.data.export.parseExport
 import lab.neurotrino.app.data.export.toDomain
 import lab.neurotrino.app.data.export.toDto
+import lab.neurotrino.app.domain.AssistantMessage
+import lab.neurotrino.app.domain.AssistantMode
 import lab.neurotrino.app.domain.AttachmentMeta
+import lab.neurotrino.app.domain.Conversation
 import lab.neurotrino.app.domain.EXPORT_FORMAT
 import lab.neurotrino.app.domain.EXPORT_VERSION
 import lab.neurotrino.app.domain.Expansion
@@ -36,6 +39,7 @@ import lab.neurotrino.app.domain.Thought
 import lab.neurotrino.app.domain.ThoughtStatus
 import lab.neurotrino.app.domain.ThoughtType
 import lab.neurotrino.app.domain.UserProfile
+import lab.neurotrino.app.domain.conversationTitle
 import lab.neurotrino.app.domain.previewTitle
 import lab.neurotrino.app.domain.splitFragments
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +69,25 @@ class LabRepository(
     fun book(id: String): Flow<ReadingItem?> = db.reading().observeOne(id).map { it?.toDomain() }
     fun attachments(thoughtId: String): Flow<List<AttachmentMeta>> =
         db.attachments().observeForThought(thoughtId).map { rows -> rows.map { it.toMeta() } }
+
+    val conversations: Flow<List<Conversation>> = db.conversations().observe().map { rows -> rows.map { it.toDomain() } }
+
+    fun conversation(id: String): Flow<Conversation?> =
+        conversations.map { list -> list.find { it.id == id } }
+
+    fun messages(conversationId: String): Flow<List<AssistantMessage>> =
+        db.messages().observeForConversation(conversationId).map { rows -> rows.map { it.toDomain() } }
+
+    suspend fun messagesOnce(conversationId: String): List<AssistantMessage> =
+        db.messages().forConversation(conversationId).map { it.toDomain() }
+
+    suspend fun conversationOnce(id: String): Conversation? = db.conversations().get(id)?.toDomain()
+
+    /** Ostatnia aktywna rozmowa powiązana z daną myślą (jeśli istnieje). */
+    suspend fun latestConversationForThought(thoughtId: String): Conversation? =
+        db.conversations().all().map { it.toDomain() }
+            .filter { it.sourceThoughtId == thoughtId && !it.archived }
+            .maxByOrNull { it.updatedAt }
 
     suspend fun start() = db.ensureSeeded()
 
@@ -374,6 +397,84 @@ class LabRepository(
     }
 
     // ── Export / import ───────────────────────────────────────────────────────
+    // ── Asystent: rozmowy (V4 P0) ─────────────────────────────────────────────
+    suspend fun createConversation(mode: AssistantMode, projectId: String? = null, sourceThoughtId: String? = null): Conversation {
+        val stamp = now()
+        val convo = Conversation(
+            id = id("cv"), title = "Nowa rozmowa", projectId = projectId,
+            sourceThoughtId = sourceThoughtId, mode = mode, archived = false,
+            createdAt = stamp, updatedAt = stamp,
+        )
+        db.conversations().upsert(convo.toRow())
+        return convo
+    }
+
+    suspend fun renameConversation(id: String, title: String) {
+        val clean = title.trim().ifBlank { "Nowa rozmowa" }.take(120)
+        db.conversations().rename(id, clean, now())
+    }
+
+    suspend fun setConversationMode(id: String, mode: AssistantMode) {
+        db.conversations().setMode(id, mode.name, now())
+    }
+
+    suspend fun setConversationArchived(id: String, archived: Boolean) {
+        db.conversations().setArchived(id, archived, now())
+    }
+
+    suspend fun deleteConversation(id: String) {
+        db.conversations().delete(id) // wiadomości znikają przez ON DELETE CASCADE
+    }
+
+    /** Zapisuje wiadomość; jeśli rozmowa ma jeszcze domyślny tytuł, ustala go z 1. wypowiedzi użytkownika. */
+    suspend fun addConversationMessage(
+        conversationId: String,
+        role: String,
+        content: String,
+        provenance: Provenance,
+        model: String? = null,
+    ): AssistantMessage {
+        val stamp = now()
+        val msg = AssistantMessage(
+            id = id("msg"), conversationId = conversationId, role = role,
+            content = content, model = model, provenance = provenance, createdAt = stamp,
+        )
+        db.messages().upsert(msg.toRow())
+        db.conversations().touch(conversationId, stamp)
+        if (role == "user") {
+            db.conversations().get(conversationId)?.let { row ->
+                if (row.title == "Nowa rozmowa") {
+                    db.conversations().rename(conversationId, conversationTitle(content), stamp)
+                }
+            }
+        }
+        return msg
+    }
+
+    /** Jawnie zapisuje fragment odpowiedzi AI jako koncepcję użytkownika (nigdy automatycznie). */
+    suspend fun saveAiTextAsThought(content: String, projectId: String? = null, title: String? = null): Thought {
+        val stamp = now()
+        val clean = content.trim()
+        val thought = Thought(
+            id = id("th"),
+            title = title?.take(72)?.ifBlank { null } ?: previewTitle(clean),
+            rawText = clean,
+            content = clean,
+            types = listOf(ThoughtType.other),
+            status = ThoughtStatus.seed,
+            tags = listOf("asystent"),
+            createdAt = stamp,
+            updatedAt = stamp,
+            lastOpenedAt = stamp,
+            provenance = Provenance.ai, // zachowujemy proweniencję — to dzieło modelu
+            projectIds = listOfNotNull(projectId),
+            sourceIds = emptyList(),
+            readingItemIds = emptyList(),
+        )
+        db.thoughts().upsert(thought.toRow())
+        return thought
+    }
+
     suspend fun exportJson(): String {
         val file = snapshot()
         return jsonPretty.encodeToString(LabExportFile.serializer(), file)
@@ -393,6 +494,8 @@ class LabRepository(
             },
             readingItems = db.reading().all().map { it.toDomain().toDto() },
             sparks = emptyList(),
+            conversations = db.conversations().all().map { it.toDomain().toDto() },
+            messages = db.messages().all().map { it.toDomain().toDto() },
             profile = profile.toDto(),
         )
     }
@@ -403,6 +506,14 @@ class LabRepository(
         val backupKey = "backup:pre-import:${backup.exportedAt}"
         db.meta().upsert(MetaRow(backupKey, jsonPretty.encodeToString(LabExportFile.serializer(), backup)))
         pruneImportBackups(keep = 1)
+        // Rozmowy/wiadomości: integralność referencji sprawdzona już w parseExport.
+        // Przy replace kasuje cascade; przy scalaniu dopinsujemy do istniejących (FK pilnuje bazy).
+        val existingConvoIds = if (replace) emptySet() else db.conversations().all().map { it.id }.toSet()
+        val knownConvoIds = existingConvoIds + data.conversations.map { it.id }.toSet()
+        val missing = data.messages.map { it.conversationId }.filter { it !in knownConvoIds }.distinct()
+        if (missing.isNotEmpty()) {
+            throw IllegalArgumentException("Wiadomości odwołują się do nieznanych rozmów: ${missing.take(3).joinToString(", ")}")
+        }
         if (replace) {
             withContext(Dispatchers.IO) {
                 File(appContext.filesDir, "attachments").deleteRecursively()
@@ -413,7 +524,10 @@ class LabRepository(
             db.reading().clear()
             db.sources().clear()
             db.attachments().clear()
+            db.conversations().clear() // cascade → wiadomości
         }
+        db.conversations().upsertAll(data.conversations.map { it.toDomain().toRow() })
+        db.messages().upsertAll(data.messages.map { it.toDomain().toRow() })
         db.thoughts().upsertAll(data.thoughts.map { it.toDomain().toRow() })
         db.projects().upsertAll(data.projects.map { it.toDomain().toRow() })
         db.relationships().upsertAll(data.relationships.map { it.toDomain().toRow() })
@@ -452,6 +566,7 @@ class LabRepository(
         db.reading().clear()
         db.sources().clear()
         db.attachments().clear()
+        db.conversations().clear() // cascade → wiadomości
         db.meta().clear()
         // Prevent the first-launch seeder from resurrecting sample content.
         db.meta().upsert(MetaRow("seeded", "true"))

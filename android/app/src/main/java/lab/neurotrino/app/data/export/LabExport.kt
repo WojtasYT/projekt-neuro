@@ -6,7 +6,9 @@ import lab.neurotrino.app.data.db.HypothesisDto
 import lab.neurotrino.app.data.db.jsonSilent
 import lab.neurotrino.app.domain.EXPORT_FORMAT
 import lab.neurotrino.app.domain.EXPORT_VERSION
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
+import lab.neurotrino.app.domain.AssistantMessage
+import lab.neurotrino.app.domain.Conversation
 import lab.neurotrino.app.domain.Expansion
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HistoryNote
@@ -39,6 +41,8 @@ data class LabExportFile(
     val sources: List<SourceDto> = emptyList(),
     val readingItems: List<ReadingDto> = emptyList(),
     val sparks: List<SparkDto> = emptyList(),
+    val conversations: List<ConversationDto> = emptyList(),
+    val messages: List<MessageDto> = emptyList(),
     val profile: ProfileDto,
 )
 
@@ -137,6 +141,30 @@ data class SparkDto(
 )
 
 @Serializable
+data class ConversationDto(
+    val id: String,
+    val title: String,
+    val projectId: String? = null,
+    val sourceThoughtId: String? = null,
+    val mode: String,
+    val archived: Boolean = false,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class MessageDto(
+    val id: String,
+    val conversationId: String,
+    val role: String,
+    val content: String,
+    val model: String? = null,
+    /** user | ai — odpowiedzi modelu nigdy nie są traktowane jako wiedza użytkownika. */
+    val provenance: String,
+    val createdAt: String,
+)
+
+@Serializable
 data class ProfileDto(
     val id: String = "local",
     val displayName: String,
@@ -204,6 +232,20 @@ fun ReadingDto.toDomain() = ReadingItem(
 fun SourceItem.toDto() = SourceDto(id, title, authors, year, publisher, doi, url, sourceType, notes, accessedAt, createdAt)
 fun SourceDto.toDomain() = SourceItem(id, title, authors, year.orEmpty(), publisher.orEmpty(), doi.orEmpty(), url.orEmpty(), sourceType, notes, accessedAt.orEmpty(), createdAt)
 
+fun Conversation.toDto() = ConversationDto(id, title, projectId, sourceThoughtId, mode.name, archived, createdAt, updatedAt)
+fun ConversationDto.toDomain() = Conversation(
+    id, title, projectId, sourceThoughtId,
+    runCatching { AssistantMode.valueOf(mode) }.getOrDefault(AssistantMode.impuls),
+    archived, createdAt, updatedAt,
+)
+
+fun AssistantMessage.toDto() = MessageDto(id, conversationId, role, content, model, provenance.name, createdAt)
+fun MessageDto.toDomain() = AssistantMessage(
+    id, conversationId, role, content, model,
+    runCatching { Provenance.valueOf(provenance) }.getOrDefault(Provenance.user),
+    createdAt,
+)
+
 fun UserProfile.toDto() = ProfileDto(
     displayName = displayName, interests = interests, currentFocus = currentFocus, onboarded = onboarded,
     theme = theme, aiDefaultMode = aiDefaultMode.name, aiConfig = AiConfigDto(gatewayUrl, model.ifBlank { null }),
@@ -214,7 +256,7 @@ fun UserProfile.toDto() = ProfileDto(
 
 fun ProfileDto.toDomain() = UserProfile(
     displayName, interests, currentFocus, onboarded, theme,
-    runCatching { AiMode.valueOf(aiDefaultMode) }.getOrDefault(AiMode.iskra),
+    runCatching { AssistantMode.valueOf(aiDefaultMode) }.getOrDefault(AssistantMode.impuls),
     aiConfig.gatewayUrl, aiConfig.model.orEmpty(), remindersEnabled,
     lastMindState?.let { mindFromPwa(it) }, notesToSelf, updatedAt,
 )
@@ -243,12 +285,21 @@ fun parseExport(raw: String): LabExportFile {
     if (parsed.format != EXPORT_FORMAT) {
         throw IllegalArgumentException("To nie jest plik formatu neurotrino-lab (jest: ${parsed.format}).")
     }
-    if (parsed.version != EXPORT_VERSION) {
-        throw IllegalArgumentException("Nieobsługiwana wersja zapisu (${parsed.version}). Oczekiwano $EXPORT_VERSION.")
+    if (parsed.version != 1 && parsed.version != EXPORT_VERSION) {
+        throw IllegalArgumentException("Nieobsługiwana wersja zapisu (${parsed.version}). Oczekiwano 1 albo $EXPORT_VERSION.")
     }
     parsed.thoughts.forEach {
         if (it.id.isBlank()) throw IllegalArgumentException("Myśl bez identyfikatora.")
     }
+    parsed.conversations.forEach {
+        if (it.id.isBlank()) throw IllegalArgumentException("Rozmowa bez identyfikatora.")
+    }
+    val known = parsed.conversations.map { it.id }.toSet()
+    parsed.messages.forEach { m ->
+        if (m.id.isBlank()) throw IllegalArgumentException("Wiadomość bez identyfikatora.")
+        if (m.conversationId !in known) throw IllegalArgumentException("Wiadomość odwołuje się do nieistniejącej rozmowy (${m.conversationId}).")
+    }
+    // integralność referencji message -> conversation jest twardym wymogiem formatu v2
     return parsed
 }
 

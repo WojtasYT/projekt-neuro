@@ -1,6 +1,8 @@
 package lab.neurotrino.app.data.db
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "thoughts")
@@ -113,4 +115,41 @@ data class ProfileRow(
 data class MetaRow(
     @PrimaryKey val key: String,
     val value: String,
+)
+
+@Entity(
+    tableName = "conversations",
+    indices = [Index(value = ["updatedAt"])],
+)
+data class ConversationRow(
+    @PrimaryKey val id: String,
+    val title: String,
+    val projectId: String?,
+    val sourceThoughtId: String?,
+    val mode: String,
+    val archived: Boolean,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Entity(
+    tableName = "messages",
+    foreignKeys = [
+        ForeignKey(
+            entity = ConversationRow::class,
+            parentColumns = ["id"],
+            childColumns = ["conversationId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["conversationId"])],
+)
+data class MessageRow(
+    @PrimaryKey val id: String,
+    val conversationId: String,
+    val role: String,
+    val content: String,
+    val model: String?,
+    val provenance: String,
+    val createdAt: String,
 )

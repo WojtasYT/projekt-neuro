@@ -6,7 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import lab.neurotrino.app.NeurotrinoApp
 import lab.neurotrino.app.data.ai.AiGateway
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
 import lab.neurotrino.app.domain.GraphKind
 import lab.neurotrino.app.domain.HypothesisFields
 import lab.neurotrino.app.domain.MindState
@@ -215,8 +215,17 @@ class ShellViewModel(application: Application) : AndroidViewModel(application) {
     fun bookFlow(id: String) = repo.book(id)
     fun attachmentsFlow(id: String) = repo.attachments(id)
 
-    suspend fun askAi(mode: AiMode, thought: Thought): Result<String> =
-        runCatching { AiGateway.request(mode, thought, profile.value) }
+    suspend fun askAi(mode: AssistantMode, thought: Thought): Result<String> =
+        runCatching {
+            AiGateway.sendMessage(
+                profile = profile.value,
+                conversationId = null,
+                mode = mode,
+                messages = listOf("user" to "Odnieś się do tej myśli zgodnie z trybem."),
+                currentThought = thought.content.ifBlank { thought.rawText },
+                contextItems = emptyList(),
+            ).content
+        }
 
     fun handleIncomingText(text: String) {
         viewModelScope.launch { repo.capture(text) }

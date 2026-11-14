@@ -46,6 +46,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.navArgument
 import lab.neurotrino.app.R
 import lab.neurotrino.app.domain.AttachmentMeta
@@ -62,6 +63,8 @@ import lab.neurotrino.app.ui.library.BookScreen
 import lab.neurotrino.app.ui.library.LibraryScreen
 import lab.neurotrino.app.ui.projects.ProjectDetailScreen
 import lab.neurotrino.app.ui.projects.ProjectsScreen
+import lab.neurotrino.app.ui.assistant.AssistantScreen
+import lab.neurotrino.app.ui.assistant.AssistantViewModel
 import lab.neurotrino.app.ui.settings.SettingsScreen
 import lab.neurotrino.app.ui.studio.StudioScreen
 import lab.neurotrino.app.ui.thoughts.ThoughtsScreen
@@ -79,9 +82,11 @@ object Routes {
     const val Library = "library"
     const val Book = "book/{id}"
     const val Settings = "settings"
+    const val Assistant = "assistant/{thoughtId}"
     fun studio(id: String) = "studio/$id"
     fun project(id: String) = "project/$id"
     fun book(id: String) = "book/$id"
+    fun assistant(thoughtId: String? = null) = "assistant/${thoughtId ?: "none"}"
 }
 
 @Composable
@@ -194,6 +199,18 @@ fun NeurotrinoRoot(
                     onOpenThought = { nav.navigate(Routes.studio(it)) },
                     onSettings = { nav.navigate(Routes.Settings) },
                     onLibrary = { nav.navigate(Routes.Library) },
+                    onAssistant = { nav.navigate(Routes.assistant(null)) },
+                )
+            }
+            composable(Routes.Assistant, arguments = listOf(navArgument("thoughtId") { type = NavType.StringType })) { entry ->
+                val thoughtId = entry.arguments?.getString("thoughtId")?.takeIf { it != "none" }
+                val assistantVm: AssistantViewModel = viewModel()
+                AssistantScreen(
+                    thoughtId = thoughtId,
+                    vm = assistantVm,
+                    onBack = { nav.popBackStack() },
+                    onOpenSettings = { nav.navigate(Routes.Settings) },
+                    onOpenThought = { nav.navigate(Routes.studio(it)) },
                 )
             }
             composable(Routes.Thoughts) {
@@ -231,6 +248,7 @@ fun NeurotrinoRoot(
                     onDetachSource = { vm.detachSource(id, it) },
                     onDeleteSource = { vm.deleteSource(it) },
                     onAskAi = { mode, th -> vm.askAi(mode, th) },
+                    onOpenAssistant = { nav.navigate(Routes.assistant(id)) },
                     onOpenThought = { nav.navigate(Routes.studio(it)) },
                     onOpenProject = { nav.navigate(Routes.project(it)) },
                 )

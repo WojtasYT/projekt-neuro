@@ -2,7 +2,7 @@ package lab.neurotrino.app.ui
 
 import androidx.annotation.StringRes
 import lab.neurotrino.app.R
-import lab.neurotrino.app.domain.AiMode
+import lab.neurotrino.app.domain.AssistantMode
 import lab.neurotrino.app.domain.MindState
 import lab.neurotrino.app.domain.ProjectStatus
 import lab.neurotrino.app.domain.Provenance
@@ -98,22 +98,18 @@ import lab.neurotrino.app.domain.ThoughtType
     MindState.impulse -> R.string.mind_hint_impulse
 }
 
-@StringRes fun AiMode.labelRes() = when (this) {
-    AiMode.iskra -> R.string.ai_mode_iskra
-    AiMode.sokrates -> R.string.ai_mode_sokrates
-    AiMode.lacznik -> R.string.ai_mode_lacznik
-    AiMode.adwokat -> R.string.ai_mode_adwokat
-    AiMode.weryfikator -> R.string.ai_mode_weryfikator
-    AiMode.rozwiniecie -> R.string.ai_mode_rozwiniecie
-    AiMode.powrot -> R.string.ai_mode_powrot
+@StringRes fun AssistantMode.labelRes() = when (this) {
+    AssistantMode.impuls -> R.string.ai_mode_impuls
+    AssistantMode.rozwiniecie -> R.string.ai_mode_rozwiniecie
+    AssistantMode.analiza -> R.string.ai_mode_analiza
+    AssistantMode.badanie -> R.string.ai_mode_badanie
+    AssistantMode.adwersarz -> R.string.ai_mode_adwersarz
 }
 
-@StringRes fun AiMode.hintRes() = when (this) {
-    AiMode.iskra -> R.string.ai_hint_iskra
-    AiMode.sokrates -> R.string.ai_hint_sokrates
-    AiMode.lacznik -> R.string.ai_hint_lacznik
-    AiMode.adwokat -> R.string.ai_hint_adwokat
-    AiMode.weryfikator -> R.string.ai_hint_weryfikator
-    AiMode.rozwiniecie -> R.string.ai_hint_rozwiniecie
-    AiMode.powrot -> R.string.ai_hint_powrot
+@StringRes fun AssistantMode.hintRes() = when (this) {
+    AssistantMode.impuls -> R.string.ai_hint_impuls
+    AssistantMode.rozwiniecie -> R.string.ai_hint_rozwiniecie
+    AssistantMode.analiza -> R.string.ai_hint_analiza
+    AssistantMode.badanie -> R.string.ai_hint_badanie
+    AssistantMode.adwersarz -> R.string.ai_hint_adwersarz
 }

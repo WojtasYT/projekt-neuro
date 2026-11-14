@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.NorthEast
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -84,6 +85,7 @@ fun LabScreen(
     onOpenThought: (String) -> Unit,
     onSettings: () -> Unit,
     onLibrary: () -> Unit,
+    onAssistant: () -> Unit,
 ) {
     val resume = lastResumable(thoughts)
     val project = projects.firstOrNull { it.status == ProjectStatus.active || it.status == ProjectStatus.incubating }
@@ -113,6 +115,9 @@ fun LabScreen(
                     Text(stringResource(R.string.app_mark_subtitle), style = MaterialTheme.typography.labelSmall, color = Cyan)
                 }
                 Spacer(Modifier.weight(1f))
+                IconButton(onClick = onAssistant) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = stringResource(R.string.assistant_title))
+                }
                 IconButton(onClick = onLibrary) {
                     Icon(Icons.Outlined.MenuBook, contentDescription = stringResource(R.string.nav_library))
                 }
