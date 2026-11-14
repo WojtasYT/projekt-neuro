@@ -95,22 +95,18 @@ fun AssistantScreen(
     }
 
     val selectedId by vm.selectedId.collectAsStateWithLifecycle()
-    val configured by vm.profile.collectAsStateWithLifecycle()
-    val gatewayReady = configured.gatewayUrl.isNotBlank()
 
     LabField {
         Box(Modifier.fillMaxSize()) {
             if (selectedId == null) {
                 ConversationListPane(
                     vm = vm,
-                    gatewayReady = gatewayReady,
                     onBack = onBack,
                     onOpenSettings = onOpenSettings,
                 )
             } else {
                 ChatPane(
                     vm = vm,
-                    gatewayReady = gatewayReady,
                     onBack = onBack,
                     onOpenSettings = onOpenSettings,
                     onOpenThought = onOpenThought,
@@ -126,7 +122,6 @@ fun AssistantScreen(
 @Composable
 private fun ConversationListPane(
     vm: AssistantViewModel,
-    gatewayReady: Boolean,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -284,11 +279,12 @@ private fun ConversationRow(
 @Composable
 private fun ChatPane(
     vm: AssistantViewModel,
-    gatewayReady: Boolean,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenThought: (String) -> Unit,
 ) {
+    val profile by vm.profile.collectAsStateWithLifecycle()
+    val gatewayReady = profile.gatewayUrl.isNotBlank()
     val conversation by vm.selectedConversation.collectAsStateWithLifecycle()
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
@@ -318,6 +314,11 @@ private fun ChatPane(
             Column(Modifier.weight(1f)) {
                 Text(convo.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(R.string.assistant_mode_label) + ": " + stringResource(convo.mode.labelRes()), style = MaterialTheme.typography.labelSmall, color = Indigo)
+            }
+            sourceThought?.let { st ->
+                IconButton(onClick = { onOpenThought(st.id) }) {
+                    Icon(Icons.Outlined.Edit, contentDescription = st.title.ifBlank { "Myśl" })
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = null) }
@@ -357,8 +358,6 @@ private fun ChatPane(
             previewing = previewing,
             onToggle = { vm.toggleExcluded(it) },
             onPreview = { vm.previewNow() },
-            onOpenThought = onOpenThought,
-            sourceThoughtId = sourceThought?.id,
         )
         Spacer(Modifier.height(2.dp))
 
@@ -481,8 +480,6 @@ private fun ContextChips(
     previewing: Boolean,
     onToggle: (String) -> Unit,
     onPreview: () -> Unit,
-    onOpenThought: (String) -> Unit,
-    sourceThoughtId: String?,
 ) {
     Column(Modifier.padding(horizontal = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

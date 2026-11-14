@@ -91,7 +91,7 @@ fun missingConversationRefs(
     knownConversationIds: Set<String>,
 ): List<String> = messageConversationIds.filter { it !in knownConversationIds }.distinct()
 
-/** Normalizacja konfiguracji bramki wpisanej przez użytkownika → baza do której doklejane są ścieżki /v1/*. */
+/** Normalizacja konfiguracji bramki wpisanej przez użytkownika → baza, do której doklejane są ścieżki API. */
 fun normalizeGatewayBase(url: String): String {
     var base = url.trim().trimEnd('/')
     val suffixes = listOf(

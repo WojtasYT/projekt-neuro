@@ -423,7 +423,8 @@ class LabRepository(
     }
 
     suspend fun deleteConversation(id: String) {
-        db.conversations().delete(id) // wiadomości znikają przez ON DELETE CASCADE
+        db.messages().deleteForConversation(id) // jawnie — niezależnie od ustawienia FK pragma
+        db.conversations().delete(id)
     }
 
     /** Zapisuje wiadomość; jeśli rozmowa ma jeszcze domyślny tytuł, ustala go z 1. wypowiedzi użytkownika. */
@@ -524,7 +525,8 @@ class LabRepository(
             db.reading().clear()
             db.sources().clear()
             db.attachments().clear()
-            db.conversations().clear() // cascade → wiadomości
+            db.messages().clear()
+            db.conversations().clear()
         }
         db.conversations().upsertAll(data.conversations.map { it.toDomain().toRow() })
         db.messages().upsertAll(data.messages.map { it.toDomain().toRow() })
@@ -566,7 +568,8 @@ class LabRepository(
         db.reading().clear()
         db.sources().clear()
         db.attachments().clear()
-        db.conversations().clear() // cascade → wiadomości
+        db.messages().clear()
+        db.conversations().clear()
         db.meta().clear()
         // Prevent the first-launch seeder from resurrecting sample content.
         db.meta().upsert(MetaRow("seeded", "true"))
